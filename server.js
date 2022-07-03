@@ -41,8 +41,8 @@ function menu() {
         "add a department",
         "add a role",
         "add an employee",
-        "update an employee role",
-        "exit"]
+        "update an employee role"
+      ]
     })
     .then((choiceObj) => {
       choice = choiceObj.operation;
@@ -64,7 +64,7 @@ function menu() {
           break;
 
         case "add a role":
-          // user is prompted to enter the name, salary, and department for the role and that role is added to the database
+          addRole();
           break;
 
         case "add an employee":
@@ -72,11 +72,7 @@ function menu() {
           break;
 
         case "update an employee role":
-          // user is prompted to select an employee to update and their new role and this information is updated in the database
-          break;
-
-        case "exit":
-          db.end();
+          updateEmployee();
           break;
       }
     });
@@ -137,7 +133,81 @@ viewRoles = () => {
 
 // user is prompted to enter the name of the department and that department is added to the database
 addDepartment = () => {
+  inquirer
+    .prompt([
+      {
+        type: "input",
+        name: "dept_name",
+        message: "please enter the department name:"
+      }
+    ])
+    .then((department) => {
+      const departmentName = department.dept_name;
+      const insertQuery = `
+        INSERT INTO department (name) VALUES (?)`;
+      const params = [departmentName];
 
+      db.query(insertQuery, params, (err, res) => {
+        if (err) throw err;
+        console.log("department added")
+      })
+      menu();
+    });
+}
+
+// user is prompted to enter the name, salary, and department for the role and that role is added to the database
+addRole = () => {
+
+  // QUERY FOR DEPARTMENTS
+  const deptQuery =
+  `SELECT department.name
+    FROM department`;
+  db.query(deptQuery, (err, res) => {
+    if (err) throw err
+    const deptChoices = res.map(({name}) => (`${name}`));
+
+  inquirer
+  .prompt([
+    {
+      type: "input",
+      name: "job_title",
+      message: "please enter the role title:"
+    },
+    {
+      type: "input",
+      name: "salary",
+      message: "please enter the salary for this role:"
+    },
+    {
+      type: "list",
+      name: "dept",
+      message: "please select the department for this role:",
+      choices: deptChoices
+    }
+  ])
+  .then((response) => {
+    // QUERY FOR DEPARTMENT
+      const deptQuery =
+        `SELECT 
+          department.id
+        FROM department
+        WHERE department.name = ?`;
+      db.query(deptQuery, [response.dept], (err, res) => {
+        if (err) throw err;
+          const deptId = res[0].id;
+
+    const insertQuery = `
+      INSERT INTO job (title, salary, department_id) VALUES (?,?,?)`;
+    const params = [response.job_title, response.salary, deptId];
+
+    db.query(insertQuery, params, (err, res) => {
+      if (err) throw err;
+      console.log("role added")
+    })
+    menu();
+  });
+  });
+});
 }
 
 // user is prompted to enter the employee’s first name, last name, role, and manager, and that employee is added to the database
@@ -203,7 +273,7 @@ addEmployee= () => {
               if (err) throw err;
               const managerId = res[0].id;
 
-              // QUERY FOR MANAGERS
+              // QUERY FOR ROLE
               const roleIdQuery =
                 `SELECT 
                   job.id
@@ -212,8 +282,6 @@ addEmployee= () => {
               db.query(roleIdQuery, [title], (err, res) => {
                 if (err) throw err;
                 const roleId = res[0].id;
-                console.log(roleId);
-                console.log(managerId);
 
                 const insertQuery = `
                   INSERT INTO employee (first_name, last_name, job_id, manager_id) VALUES (?,?,?,?)`;
@@ -221,6 +289,7 @@ addEmployee= () => {
 
                 db.query(insertQuery, params, (err, res) => {
                 if (err) throw err;
+                console.log("employee added")
                 })
               menu();
               });
@@ -228,5 +297,82 @@ addEmployee= () => {
         });
       });
     });
-  };  
+  };
+  
+  // user is prompted to select an employee to update and their new role and this information is updated in the database
+  updateEmployee = () => {
+      // QUERY FOR EMPLOYEES
+      const employeeQuery =
+      `SELECT employee.first_name
+        FROM employee`;
+      db.query(employeeQuery, (err, res) => {
+        if (err) throw err
+        const employeeChoices = res.map(({first_name}) => (`${first_name}`));
+
+        inquirer
+          .prompt([
+            {
+              type: "list",
+              name: "employee_choice",
+              message: "please select an employee:",
+              choices: employeeChoices
+            }
+          ])
+          .then((choice) => {
+              // QUERY FOR EMPLOYEES
+                const employeeQuery =
+                  `SELECT 
+                    employee.id
+                  FROM employee
+                  WHERE employee.first_name = ?`;
+                db.query(employeeQuery, [choice.employee_choice], (err, res) => {
+                  if (err) throw err;
+                  const employeeId = res[0].id;
+
+                    // QUERY FOR ROLES
+                    const roleQuery =
+                    `SELECT job.title
+                      FROM job`;
+                    db.query(roleQuery, (err, res) => {
+                      if (err) throw err
+                      const roleChoices = res.map(({title}) => (`${title}`));
+
+                      inquirer
+                        .prompt([
+                          {
+                            type: "list",
+                            name: "updated_role",
+                            message: "please select a new role:",
+                            choices: roleChoices
+                          }
+                        ])
+                        .then((newRole) => {
+                          const roleIdQuery =
+                          `SELECT 
+                            job.id
+                          FROM job
+                          WHERE job.title = ?`;
+                          db.query(roleIdQuery, [newRole.updated_role], (err, res) => {
+                          if (err) throw err;
+                          const roleId = res[0].id;
+                            
+                            const updateQuery = `
+                              UPDATE 
+                                employee 
+                              SET job_id = ? 
+                              WHERE employee.id = ?
+                            `;
+                            const parameters = [roleId, employeeId];
+                            db.query(updateQuery, parameters, (err, res) => {
+                              if (err) throw err;
+                              console.log("employee role updated")
+                              menu();
+                            })
+                        });
+                });
+          });
+      });
+  });
+});
+}
 
