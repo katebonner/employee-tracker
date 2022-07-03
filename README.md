@@ -1,3 +1,10 @@
+
+
+https://user-images.githubusercontent.com/96092615/177051637-94b060e6-6c10-4fce-8c36-6f982fb62c16.mov
+
+
+
+
 GIVEN a command-line application that accepts user input
 
 WHEN I start the application
