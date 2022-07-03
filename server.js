@@ -29,7 +29,6 @@ db.connect(err => {
 
 // function which prompts the user for what action they should take
 function menu() {
-
   inquirer
     .prompt({
       type: "list",
@@ -154,14 +153,16 @@ addEmployee= () => {
       
   // QUERY FOR MANAGERS
     const managerQuery =
-      `SELECT employee.first_name
+      `SELECT 
+        employee.first_name,
+        employee.id
       FROM employee
       WHERE manager_id IS NULL`;
   
     db.query(managerQuery, (err, res) => {
       if (err) throw err;
       const managerChoices = res.map(({first_name}) => (`${first_name}`));
-
+      
           // COLLECT USER INPUT
           inquirer.prompt([
             {
@@ -176,23 +177,56 @@ addEmployee= () => {
             },
             {
               type: "list",
-              name: "id",
+              name: "title",
               message: "please select the employee's role:",
               choices: roleChoices
             },
             {
               type: "list",
-              name: "manager_id",
+              name: "manager_name",
               message: "please select the employee's manager:",
               choices: managerChoices
             }
           ])
           .then((responses) => {
-            console.log(responses);
-            
-          })
+
+            let managerName = responses.manager_name;
+            let title = responses.title;
+           
+            // QUERY FOR MANAGERS
+            const managerIdQuery =
+              `SELECT 
+                employee.id
+              FROM employee
+              WHERE employee.first_name = ?`;
+            db.query(managerIdQuery, [managerName], (err, res) => {
+              if (err) throw err;
+              const managerId = res[0].id;
+
+              // QUERY FOR MANAGERS
+              const roleIdQuery =
+                `SELECT 
+                  job.id
+                FROM job
+                WHERE job.title = ?`;
+              db.query(roleIdQuery, [title], (err, res) => {
+                if (err) throw err;
+                const roleId = res[0].id;
+                console.log(roleId);
+                console.log(managerId);
+
+                const insertQuery = `
+                  INSERT INTO employee (first_name, last_name, job_id, manager_id) VALUES (?,?,?,?)`;
+                const params = [responses.first_name, responses.last_name, roleId, managerId];
+
+                db.query(insertQuery, params, (err, res) => {
+                if (err) throw err;
+                })
+              menu();
+              });
+          });
         });
       });
-    };
-
+    });
+  };  
 
